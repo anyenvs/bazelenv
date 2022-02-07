@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Summary: Explain how the current bazel version is set
+set -e
+[ -n "$BAZELENV_DEBUG" ] && set -x
+
+unset BAZELENV_VERSION_ORIGIN
+
+if [ -n "$BAZELENV_VERSION_ORIGIN" ]; then
+  echo "$BAZELENV_VERSION_ORIGIN"
+elif [ -n "$BAZELENV_VERSION" ]; then
+  echo "BAZELENV_VERSION environment variable"
+else
+  bazelenv-version-file
+fi

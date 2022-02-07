@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Usage: bazelenv install <version>
+# Summary: Install the specified version of bazel
+
+[ -n "${BAZELENV_DEBUG}" ] && set -x
+source ${BAZELENV_ROOT}/libexec/helpers.sh
+
+[ "${#}" -gt 1 ] && error_and_die "usage: bazelenv install [<version>]"
+
+declare version
+
+if [ -z "${1}" ]; then
+  version_file="$(bazelenv-version-file)"
+  if [ "${version_file}" != "${BAZELENV_ROOT}/version" ]; then
+    version="$(cat ${version_file} || true)"
+  fi
+else
+  version="${1}"
+fi
+
+#dst_path="${BAZELENV_ROOT}/versions/${version}/bin"
+dst_path="${BAZELENV_ROOT}/versions/${version}"
+if [ -f "${dst_path}/bazel" ]; then
+  echo "bazel v${version} is already installed"
+  exit 0
+fi
+
+info "Installing bazel v${version}"
+mkdir -p "${dst_path}" || error_and_die "Failed to make directory ${dst_path}"
+
+#curl -f https://raw.githubusercontent.com/bazel/bazel/master/scripts/get | \
+#  bazel_INSTALL_DIR="$dst_path" bash -s - --version "v${version}" --no-sudo >&2 || error_and_die "Install failed"
+
+#mkdir -p ${dst_path}/.bazel
+wget -qO /tmp/bazel-${version}-installer-$(uname -s)-$(uname -m).sh https://github.com/bazelbuild/bazel/releases/download/${version}/bazel-${version}-installer-$(uname -s)-$(uname -m).sh
+  ##TODO: make piped install work
+  #bash -s - --prefix=${dst_path} --user >&2 || error_and_die "Install failed"
+bash /tmp/bazel-${version}-installer-$(uname -s)-$(uname -m).sh --prefix=${dst_path} >&2 || error_and_die "Install failed"
+ln -svnf ${dst_path} $HOME/.bazel
+
+
+info "Installation of bazel v${version} successful"

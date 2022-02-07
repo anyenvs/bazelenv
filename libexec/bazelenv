@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -e
+
+if [ "$1" = "--debug" ]; then
+  export BAZELENV_DEBUG=1
+  shift
+fi
+
+if [ -n "$BAZELENV_DEBUG" ]; then
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] '
+  set -x
+fi
+
+abort() {
+  { if [ "$#" -eq 0 ]; then cat -
+    else echo "bazelenv: $*"
+    fi
+  } >&2
+  exit 1
+}
+
+READLINK=$(type -p greadlink readlink | head -1)
+[ -n "$READLINK" ] || abort "cannot find readlink - are you missing GNU coreutils?"
+
+resolve_link() {
+  $READLINK "$1"
+}
+
+abs_dirname() {
+  local cwd="$PWD"
+  local path="$1"
+
+  while [ -n "$path" ]; do
+    cd "${path%/*}"
+    local name="${path##*/}"
+    path="$(resolve_link "$name" || true)"
+  done
+
+  pwd
+  cd "$cwd"
+}
+
+# http://stackoverflow.com/questions/1055671/how-can-i-get-the-behavior-of-gnus-readlink-f-on-a-mac
+readlink_f() {
+  local target_file="${1}"
+  local file_name
+
+  while [ "${target_file}" != "" ]; do
+    cd "$(dirname ${target_file})"
+    file_name="$(basename "${target_file}")"
+    target_file="$(readlink "${file_name}")"
+  done
+
+  echo "$(pwd -P)/${file_name}"
+}
+
+if [ -z "${BAZELENV_ROOT}" ]; then
+  BAZELENV_ROOT="$(cd "$(dirname "$(readlink_f "${0}")")/.." && pwd)"
+else
+  BAZELENV_ROOT="${BAZELENV_ROOT%/}"
+fi
+export BAZELENV_ROOT
+
+if [ -z "${BAZELENV_DIR}" ]; then
+  BAZELENV_DIR="$PWD"
+else
+  [[ $BAZELENV_DIR == /* ]] || BAZELENV_DIR="$PWD/$BAZELENV_DIR"
+  cd "$BAZELENV_DIR" 2>/dev/null || abort "cannot change working directory to \`$BAZELENV_DIR'"
+  BAZELENV_DIR="$PWD"
+  cd "$OLDPWD"
+fi
+export BAZELENV_DIR
+
+
+shopt -s nullglob
+
+bin_path="$(abs_dirname "$0")"
+export PATH="${bin_path}:${PATH}"
+
+shopt -u nullglob
+
+command="$1"
+case "$command" in
+"" )
+  { bazelenv---version
+    bazelenv-help
+  } | abort
+  ;;
+-v | --version )
+  exec bazelenv---version
+  ;;
+-h | --help )
+  exec bazelenv-help
+  ;;
+* )
+  command_path="$(command -v "bazelenv-$command" || true)"
+  if [ -z "$command_path" ]; then
+    if [ "$command" == "shell" ]; then
+      abort "shell integration not enabled. Run \`bazelenv init' for instructions."
+    else
+      abort "no such command \`$command'"
+    fi
+  fi
+
+  shift 1
+  if [ "$1" = --help ]; then
+    if [[ "$command" == "sh-"* ]]; then
+      echo "bazelenv help \"$command\""
+    else
+      exec bazelenv-help "$command"
+    fi
+  else
+    exec "$command_path" "$@"
+  fi
+  ;;
+esac

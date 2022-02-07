@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Summary: Display the directory where bazel exists
+# Usage: bazelenv bin-path
+#
+# Displays the directory where bazel is installed.
+
+set -e
+[ -n "$BAZELENV_DEBUG" ] && set -x
+
+remove_from_path() {
+  local path_to_remove="$1"
+  local path_before
+  local result=":${PATH//\~/$HOME}:"
+  while [ "$path_before" != "$result" ]; do
+    path_before="$result"
+    result="${result//:$path_to_remove:/:}"
+  done
+  result="${result%:}"
+  echo "${result#:}"
+}
+
+if [ -n "$1" ]; then
+  export BAZELENV_VERSION="$1"
+elif [ -z "$BAZELENV_VERSION" ]; then
+  BAZELENV_VERSION="$(bazelenv-version-name)"
+fi
+
+if [ "$BAZELENV_VERSION" = "system" ]; then
+  SYSTEM_BAZEL_PATH=$(PATH="$(remove_from_path "${BAZELENV_ROOT}/bin")" command -v bazel)
+  if BAZEL_BIN_PATH="${SYSTEM_BAZEL_PATH}"; then
+    BAZEL_BIN_PATH="${SYSTEM_BAZEL_PATH%/*}"
+    echo "${BAZEL_BIN_PATH:-/}"
+    exit
+  else
+    echo "bazelenv: system version not found in PATH" >&2
+    exit 1
+  fi
+fi
+
+BAZELENV_BIN_PATH="${BAZELENV_ROOT}/versions/${BAZELENV_VERSION}/bin"
+if [ ! -d "$BAZELENV_BIN_PATH" ]; then
+  echo "bazelenv: version \`${BAZELENV_VERSION}' is not installed" >&2
+  exit 1
+fi
+
+echo "$BAZELENV_BIN_PATH"

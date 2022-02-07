@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Summary: Set or show the global bazel version
+#
+# Usage: bazelenv global <version>
+#
+# Sets the global bazel version. You can override the global version at
+# any time by setting a directory-specific version with `bazelenv local'
+# or by setting the `BAZELENV_VERSION' environment variable.
+#
+# <version> should be a string matching a bazel version known to bazelenv.
+# The special version string `system' will use your default system bazel.
+# Run `bazelenv versions' for a list of available bazel versions.
+set -x
+set -e
+[ -n "$BAZELENV_DEBUG" ] && set -x
+
+# Provide bazelenv completions
+if [ "$1" = "--complete" ]; then
+  echo system
+  exec bazelenv-versions --bare
+fi
+
+BAZELENV_VERSION="$1"
+BAZELENV_VERSION_FILE="${BAZELENV_ROOT}/version"
+
+if [ -n "$BAZELENV_VERSION" ]; then
+  bazelenv-version-file-write "$BAZELENV_VERSION_FILE" "$BAZELENV_VERSION"
+else
+  bazelenv-version-file-read "$BAZELENV_VERSION_FILE" || echo system
+fi

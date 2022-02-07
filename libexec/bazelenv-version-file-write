@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Usage: bazelenv version-file-write <file> <version>
+
+set -e
+[ -n "$BAZELENV_DEBUG" ] && set -x
+
+BAZELENV_VERSION_FILE="$1"
+BAZELENV_VERSION="$2"
+
+if [ -z "$BAZELENV_VERSION" ] || [ -z "$BAZELENV_VERSION_FILE" ]; then
+  bazelenv-help --usage version-file-write >&2
+  exit 1
+fi
+
+# Make sure the specified version is installed.
+bazelenv-bin-path "$BAZELENV_VERSION" > /dev/null
+
+# Write the version out to disk.
+echo "$BAZELENV_VERSION" > "$BAZELENV_VERSION_FILE"
