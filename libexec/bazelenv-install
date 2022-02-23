@@ -18,6 +18,22 @@ else
   version="${1}"
 fi
 
+BAZEL_REPO='https://api.github.com/repos/bazelbuild/bazel/releases'
+test "$1" == "--list" -o "$1" == "-l" && {
+  eval which {wget,curl,jq} &>/dev/null || { echo Please install wget,curl,jq ; exit 0; }
+  next="${BAZEL_REPO}?simple=yes&per_page=100&page="
+  page="1"
+  while true; do
+    versions=$(wget -qO- "${next}${page}" | jq -r '.[].tag_name')
+    echo $versions
+    export next=$(curl -sSLIvk "${next}${page}" 2>&1 | grep -m1 link | sed 's|.*page=\(.*\)>;|\1|g'|xargs -n1 )
+    echo $next
+    page=$(cut -d' ' -f1 <<<$next)
+    grep -q last <<<${next} && break
+  done
+  exit 0
+}
+
 #dst_path="${BAZELENV_ROOT}/versions/${version}/bin"
 dst_path="${BAZELENV_ROOT}/versions/${version}"
 if [ -f "${dst_path}/bazel" ]; then
