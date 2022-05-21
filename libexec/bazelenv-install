@@ -22,14 +22,12 @@ BAZEL_REPO='https://api.github.com/repos/bazelbuild/bazel/releases'
 test "$1" == "--list" -o "$1" == "-l" && {
   eval which {wget,curl,jq} &>/dev/null || { echo Please install wget,curl,jq ; exit 0; }
   next="${BAZEL_REPO}?simple=yes&per_page=100&page="
-  page="1"
+  page=0
   while true; do
+    page=$((page + 1))
     versions=$(wget -qO- "${next}${page}" | jq -r '.[].tag_name')
-    echo $versions
-    export next=$(curl -sSLIvk "${next}${page}" 2>&1 | grep -m1 link | sed 's|.*page=\(.*\)>;|\1|g'|xargs -n1 )
-    echo $next
-    page=$(cut -d' ' -f1 <<<$next)
-    grep -q last <<<${next} && break
+    test -n "$versions" || echo "$next$page - Emply Response"
+    test -n "$versions" && { echo $next$page; echo $versions; } || break
   done
   exit 0
 }
@@ -54,5 +52,9 @@ wget -qO /tmp/bazel-${version}-installer-$(uname -s)-$(uname -m).sh https://gith
 bash /tmp/bazel-${version}-installer-$(uname -s)-$(uname -m).sh --prefix=${dst_path} >&2 || error_and_die "Install failed"
 ln -svnf ${dst_path} $HOME/.bazel
 
+# Autocompletion
+test -f ${BAZELENV_ROOT}/completions/bazelenv.${SHELL##*/} && . ${BAZELENV_ROOT}/completions/bazelenv.${SHELL##*/}
+test -f $(bazelenv bin-path)/../lib/bazel/bin/*complete*.${SHELL##*/} && cp -fv $(bazelenv bin-path)/../lib/bazel/bin/*complete* ${BAZELENV_ROOT}/completions/
+test -f ${BAZELENV_ROOT}/completions/*complete*.${SHELL##*/} && . ${BAZELENV_ROOT}/completions/*complete*.${SHELL##*/}
 
 info "Installation of bazel v${version} successful"
